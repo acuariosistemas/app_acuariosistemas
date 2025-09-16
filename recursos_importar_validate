@@ -1,0 +1,46 @@
+if (file_exists("../../../file/doc/".{Archivo}))
+	{
+		$ruta_completa_archivo = "../../../file/doc/".{Archivo}; 
+		
+	}
+elseif (file_exists("../../_lib/file/doc/".{Archivo}))
+	{
+		$ruta_completa_archivo = "../../_lib/file/doc/".{Archivo};
+		
+	}
+		else
+	{
+		sc_redir("app_soporte","mensaje_error='No se encontró el archivo, cambie el nombre e intente nuevamente'");
+	}
+	
+	if (($handle = fopen($ruta_completa_archivo, "r")) !== FALSE) {
+    // Omite la primera línea (encabezados)
+    fgetcsv($handle); 
+
+    while (($datos = fgetcsv($handle, 1000, ",")) !== FALSE) {
+        $name = $datos[0];
+        $url = $datos[1];
+        $username = $datos[2];
+		$password = $datos[3];
+		$note = $datos[4];
+		$password = sc_encode($password);
+        
+		
+        // Verifica si el registro ya existe
+        sc_lookup(record_exists, "SELECT Clave_Recurso FROM rec01_recursos WHERE url = '$url' AND user = '$username'");
+		
+        if (isset({record_exists}[0][0])) {
+            // Actualiza la contraseña si el registro existe
+            $id_registro = {record_exists}[0][0];			
+			$sql = "UPDATE rec01_recursos SET vicisitud = '$password' WHERE Clave_Recurso = $id_registro";
+            
+        } else {
+            // Inserta un nuevo registro si no existe
+			$sql = "INSERT INTO rec01_recursos (nombre_recurso, url, user,vicisitud,nota) VALUES ('$name', '$url', '$username', '$password', '$note')";
+	        
+        }
+		sc_exec_sql($sql);
+		
+	}
+    fclose($handle);
+}
