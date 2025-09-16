@@ -1,93 +1,85 @@
-	// Contadores para el resumen de operaciones
-	$registros_insertados = 0;
-	$registros_actualizados = 0;
-	$registros_con_error = 0;
-	$clave_empresa = [glob_Clave_Empresa];
-	$login_usuario = [usr_login];
+		// Contadores para el resumen de operaciones
+		$clave_empresa = [glob_Clave_Empresa];
+		$login_usuario = [usr_login];
 
-	if (file_exists("../../../file/doc/" . {Archivo})) {
-		$ruta_completa_archivo = "../../../file/doc/" . {Archivo};
-	} elseif (file_exists("../../_lib/file/doc/" . {Archivo})) {
-		$ruta_completa_archivo = "../../_lib/file/doc/" . {Archivo};
-	} else {
-		sc_redir("app_soporte", "mensaje_error='No se encontró el archivo. Cambia el nombre e intenta nuevamente.'");
-	}
+		if (file_exists("../../../file/doc/" . {Archivo})) {
+			$ruta_completa_archivo = "../../../file/doc/" . {Archivo};
+		} elseif (file_exists("../../_lib/file/doc/" . {Archivo})) {
+			$ruta_completa_archivo = "../../_lib/file/doc/" . {Archivo};
+		} else {
+			sc_redir("app_soporte", "mensaje_error='No se encontró el archivo. Cambia el nombre e intenta nuevamente.'");
+		}
 
-	if (($handle = fopen($ruta_completa_archivo, "r")) !== FALSE) {
-		// Omite la primera línea (encabezados)
-		fgetcsv($handle);
+		if (($handle = fopen($ruta_completa_archivo, "r")) !== FALSE) {
+			// Omite la primera línea (encabezados)
+			fgetcsv($handle);
 
-		while (($datos = fgetcsv($handle, 1000, ",")) !== FALSE) {
-			$name = $datos[0];
-			$url = substr($datos[1],0,254);
-			$username = $datos[2];
-			$password = $datos[3];
-			$note = $datos[4];
+			while (($datos = fgetcsv($handle, 1000, ",")) !== FALSE) {
+				$name = $datos[0];
+				$url = substr($datos[1],0,254);
+				$username = $datos[2];
+				$password = $datos[3];
+				$note = $datos[4];
 
-			// Encripta la contraseña usando sc_encode
-			$password_cifrada = sc_encode($password);
+				// Encripta la contraseña usando sc_encode
+				$password_cifrada = sc_encode($password);
 
-			// Prepara la consulta para verificar si el registro ya existe
-			$sql = "SELECT Clave_Recurso FROM rec01_recursos WHERE url = '$url' AND user = '$username'";
-			
-			sc_lookup(record_exists, $sql);
+				// Prepara la consulta para verificar si el registro ya existe
+				$sql = "SELECT Clave_Recurso FROM rec01_recursos WHERE url = '$url' AND user = '$username'";
 
-			$clave_recurso = '';
+				sc_lookup(record_exists, $sql);
 
-			if (isset({record_exists}[0][0])) {
+				$clave_recurso = '';
 
-				// Actualiza el registro si existe
-				$clave_recurso = {record_exists}[0][0];
-				$sql = "UPDATE rec01_recursos SET nombre_recurso = '$name', vicisitud = '$password_cifrada', nota = '$note' WHERE Clave_Recurso = $clave_recurso";
-				
-				sc_exec_sql($sql);
+				if (isset({record_exists}[0][0])) {
 
-				// Verifica si hay errores de SQL de actualización
-				if ({sc_error_update}) {
-					$registros_con_error++;
+					// Actualiza el registro si existe
+					$clave_recurso = {record_exists}[0][0];
+					$sql = "UPDATE rec01_recursos SET nombre_recurso = '$name', vicisitud = '$password_cifrada', nota = '$note' WHERE Clave_Recurso = $clave_recurso";
+
+					sc_exec_sql($sql);
+
+					// Verifica si hay errores de SQL de actualización
+					
 				} else {
-					$registros_actualizados++;
-				}
-			} else {
 
-				// Inserta un nuevo registro en rec01_recursos
-				$sql = "INSERT INTO rec01_recursos (nombre_recurso, url, user, vicisitud, nota) VALUES ('$name', '$url', '$username', '$password_cifrada', '$note')";
-				
-				sc_exec_sql($sql);
+					// Inserta un nuevo registro en rec01_recursos
+					$sql = "INSERT INTO rec01_recursos (nombre_recurso, url, user, vicisitud, nota) VALUES ('$name', '$url', '$username', '$password_cifrada', '$note')";
 
-				// Verifica si hay errores de SQL de inserción
-				if ({sc_error_insert}) {
-					$registros_con_error++;
-				} else {
-					// Obtiene la clave del último registro insertado
-					sc_lookup(last_id, "SELECT LAST_INSERT_ID()");
-					$clave_recurso = {last_id}[0][0];
-					$registros_insertados++;
+					sc_exec_sql($sql);
 
-					// Si la clave del recurso es válida, procede con la inserción en las tablas de relación
-					if (!empty($clave_recurso)) {
-						// 1. Relación con la empresa (rec02_recursos_empresas)
-						sc_lookup(rel_empresa_exists, "SELECT * FROM rec02_recursos_empresas WHERE Clave_Empresa = '$clave_empresa' AND Clave_Recurso = '$clave_recurso'");
-						if (!isset({rel_empresa_exists}[0][0])) {
-							$sql_rel_empresa = "INSERT INTO rec02_recursos_empresas (Clave_Empresa, Clave_Recurso) VALUES ('$clave_empresa', '$clave_recurso')";
-							sc_exec_sql($sql_rel_empresa);
-						}
+					// Verifica si hay errores de SQL de inserción
+					if ({sc_error_insert}) {
+						
+					} else {
+						// Obtiene la clave del último registro insertado
+						sc_lookup(last_id, "SELECT LAST_INSERT_ID()");
+						$clave_recurso = {last_id}[0][0];
+						
+						// Si la clave del recurso es válida, procede con la inserción en las tablas de relación
+						if (!empty($clave_recurso)) {
+							// 1. Relación con la empresa (rec02_recursos_empresas)
+							sc_lookup(rel_empresa_exists, "SELECT * FROM rec02_recursos_empresas WHERE Clave_Empresa = '$clave_empresa' AND Clave_Recurso = '$clave_recurso'");
+							if (!isset({rel_empresa_exists}[0][0])) {
+								$sql_rel_empresa = "INSERT INTO rec02_recursos_empresas (Clave_Empresa, Clave_Recurso) VALUES ('$clave_empresa', '$clave_recurso')";
+								sc_exec_sql($sql_rel_empresa);
+							}
 
-						// 2. Relación con el usuario (rec03_recursos_usuarios)
-						sc_lookup(rel_usuario_exists, "SELECT * FROM rec03_recursos_usuarios WHERE login = '$login_usuario' AND Clave_Recurso = '$clave_recurso'");
-						if (!isset({rel_usuario_exists}[0][0])) {
-							$sql_rel_usuario = "INSERT INTO rec03_recursos_usuarios (Clave_Recurso, login) VALUES ('$clave_recurso', '$login_usuario')";
-							sc_exec_sql($sql_rel_usuario);
+							// 2. Relación con el usuario (rec03_recursos_usuarios)
+							sc_lookup(rel_usuario_exists, "SELECT * FROM rec03_recursos_usuarios WHERE login = '$login_usuario' AND Clave_Recurso = '$clave_recurso'");
+							if (!isset({rel_usuario_exists}[0][0])) {
+								$sql_rel_usuario = "INSERT INTO rec03_recursos_usuarios (Clave_Recurso, login) VALUES ('$clave_recurso', '$login_usuario')";
+								sc_exec_sql($sql_rel_usuario);
+							}
 						}
 					}
 				}
 			}
+			fclose($handle);
+
+
+	sc_redir("rec01_recursos");
+
+
+
 		}
-		fclose($handle);
-
-		
-sc_redir("rec01_recursos");
-
-
-
-	}
