@@ -1,0 +1,48 @@
+// ON VALIDATE
+if ({Password} <> '')
+{
+	{vicisitud} = sc_encode({Password});
+}
+
+
+// ON AFTER INSERT
+// Obtiene el ID del recurso recién insertado
+sc_lookup(last_id, "SELECT LAST_INSERT_ID()");
+$clave_recurso = {last_id}[0][0];
+
+// Obtiene las variables globales de la sesión
+$clave_empresa = [glob_Clave_Empresa];
+$login_usuario = [usr_login];
+
+// 1. Inserta la relación en la tabla rec02_recursos_empresas
+$sql_rel_empresa = "INSERT INTO rec02_recursos_empresas (Clave_Empresa, Clave_Recurso) VALUES ('$clave_empresa', '$clave_recurso')";
+sc_exec_sql($sql_rel_empresa);
+
+// 2. Inserta la relación en la tabla rec03_recursos_usuarios
+$sql_rel_usuario = "INSERT INTO rec03_recursos_usuarios (Clave_Recurso, login) VALUES ('$clave_recurso', '$login_usuario')";
+sc_exec_sql($sql_rel_usuario);
+
+
+
+// ON AFTER UPDATE
+// La clave del recurso ya está disponible a través del campo del formulario
+$clave_recurso = {Clave_Recurso};
+
+// Obtiene las variables globales de la sesión
+$clave_empresa = [glob_Clave_Empresa];
+$login_usuario = [usr_login];
+
+// 1. Verifica la relación con la empresa y la crea si no existe
+sc_lookup(rel_empresa_exists, "SELECT * FROM rec02_recursos_empresas WHERE Clave_Empresa = '$clave_empresa' AND Clave_Recurso = '$clave_recurso'");
+if (!isset({rel_empresa_exists}[0][0])) {
+    $sql_rel_empresa = "INSERT INTO rec02_recursos_empresas (Clave_Empresa, Clave_Recurso) VALUES ('$clave_empresa', '$clave_recurso')";
+    sc_exec_sql($sql_rel_empresa);
+}
+
+// 2. Verifica la relación con el usuario y la crea si no existe
+sc_lookup(rel_usuario_exists, "SELECT * FROM rec03_recursos_usuarios WHERE login = '$login_usuario' AND Clave_Recurso = '$clave_recurso'");
+if (!isset({rel_usuario_exists}[0][0])) {
+    $sql_rel_usuario = "INSERT INTO rec03_recursos_usuarios (Clave_Recurso, login) VALUES ('$clave_recurso', '$login_usuario')";
+    sc_exec_sql($sql_rel_usuario);
+}
+
